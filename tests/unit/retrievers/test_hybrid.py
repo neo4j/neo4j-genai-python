@@ -13,13 +13,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
 
-from neo4j_genai.retrievers import HybridRetriever, HybridCypherRetriever
-from neo4j_genai.exceptions import RetrieverInitializationError, EmbeddingRequiredError
+import pytest
+from neo4j_genai.exceptions import EmbeddingRequiredError, RetrieverInitializationError
 from neo4j_genai.neo4j_queries import get_search_query
-from neo4j_genai.types import SearchType, RetrieverResult, RetrieverResultItem
+from neo4j_genai.retrievers import HybridCypherRetriever, HybridRetriever
+from neo4j_genai.types import RetrieverResult, RetrieverResultItem, SearchType
 
 
 def test_vector_retriever_initialization(driver: MagicMock) -> None:
@@ -56,6 +56,46 @@ def test_hybrid_retriever_invalid_fulltext_index_name(
 
     assert "fulltext_index_name" in str(exc_info.value)
     assert "Input should be a valid string" in str(exc_info.value)
+
+
+@patch("neo4j_genai.retrievers.HybridRetriever._verify_version")
+def test_hybrid_retriever_with_result_format_function(
+    _verify_version_mock: MagicMock,
+    driver: MagicMock,
+    embedder: MagicMock,
+    neo4j_record: MagicMock,
+    result_formatter: MagicMock,
+) -> None:
+    embed_query_vector = [1.0 for _ in range(1536)]
+    embedder.embed_query.return_value = embed_query_vector
+    vector_index_name = "vector-index"
+    fulltext_index_name = "fulltext-index"
+    query_text = "may thy knife chip and shatter"
+    top_k = 5
+
+    retriever = HybridRetriever(
+        driver,
+        vector_index_name,
+        fulltext_index_name,
+        embedder,
+        result_formatter=result_formatter,
+    )
+    retriever.driver.execute_query.return_value = [  # type: ignore
+        [neo4j_record],
+        None,
+        None,
+    ]
+
+    records = retriever.search(query_text=query_text, top_k=top_k)
+
+    assert records == RetrieverResult(
+        items=[
+            RetrieverResultItem(
+                content="dummy-node", metadata={"score": 1.0, "node_id": 123}
+            ),
+        ],
+        metadata={"__retriever": "HybridRetriever"},
+    )
 
 
 @patch("neo4j_genai.retrievers.HybridCypherRetriever._verify_version")
@@ -296,7 +336,49 @@ def test_hybrid_cypher_retrieval_query_with_params(
     assert records == RetrieverResult(
         items=[
             RetrieverResultItem(
-                content="<Record node='dummy-node' score=1.0>", metadata=None
+                content="<Record node='dummy-node' score=1.0 node_id=123>",
+                metadata=None,
+            ),
+        ],
+        metadata={"__retriever": "HybridCypherRetriever"},
+    )
+
+
+@patch("neo4j_genai.retrievers.HybridCypherRetriever._verify_version")
+def test_hybrid_cypher_retriever_with_result_format_function(
+    _verify_version_mock: MagicMock,
+    driver: MagicMock,
+    embedder: MagicMock,
+    neo4j_record: MagicMock,
+    result_formatter: MagicMock,
+) -> None:
+    embed_query_vector = [1.0 for _ in range(1536)]
+    embedder.embed_query.return_value = embed_query_vector
+    vector_index_name = "vector-index"
+    fulltext_index_name = "fulltext-index"
+    query_text = "may thy knife chip and shatter"
+    top_k = 5
+
+    retriever = HybridCypherRetriever(
+        driver,
+        vector_index_name,
+        fulltext_index_name,
+        "",
+        embedder,
+        result_formatter=result_formatter,
+    )
+    retriever.driver.execute_query.return_value = [  # type: ignore
+        [neo4j_record],
+        None,
+        None,
+    ]
+
+    records = retriever.search(query_text=query_text, top_k=top_k)
+
+    assert records == RetrieverResult(
+        items=[
+            RetrieverResultItem(
+                content="dummy-node", metadata={"score": 1.0, "node_id": 123}
             ),
         ],
         metadata={"__retriever": "HybridCypherRetriever"},
