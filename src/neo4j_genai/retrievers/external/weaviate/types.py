@@ -17,15 +17,16 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 import neo4j
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    field_validator,
-)
+from pydantic import BaseModel, ConfigDict, field_validator
 from weaviate.client import WeaviateClient
 from weaviate.collections.classes.filters import _Filters
 
-from neo4j_genai.types import EmbedderModel, Neo4jDriverModel, VectorSearchModel
+from neo4j_genai.types import (
+    EmbedderModel,
+    Neo4jDriverModel,
+    RetrieverResultItem,
+    VectorSearchModel,
+)
 
 
 class WeaviateModel(BaseModel):
@@ -50,7 +51,7 @@ class WeaviateNeo4jRetrieverModel(BaseModel):
     embedder_model: Optional[EmbedderModel]
     return_properties: Optional[list[str]] = None
     retrieval_query: Optional[str] = None
-    result_formatter: Optional[Callable[[neo4j.Record], str]] = None
+    result_formatter: Optional[Callable[[neo4j.Record], RetrieverResultItem]] = None
 
 
 class WeaviateNeo4jSearchModel(VectorSearchModel):

@@ -65,6 +65,7 @@ class VectorRetriever(Retriever):
         index_name (str): Vector index name.
         embedder (Optional[Embedder]): Embedder object to embed query text.
         return_properties (Optional[list[str]]): List of node properties to return.
+        result_formatter (Optional[Callable[[neo4j.Record], RetrieverResultItem]]): Provided custom function to transform a neo4j.Record to a RetrieverResultItem.
 
     Raises:
         RetrieverInitializationError: If validation of the input arguments fail.
@@ -76,6 +77,9 @@ class VectorRetriever(Retriever):
         index_name: str,
         embedder: Optional[Embedder] = None,
         return_properties: Optional[list[str]] = None,
+        result_formatter: Optional[
+            Callable[[neo4j.Record], RetrieverResultItem]
+        ] = None,
     ) -> None:
         try:
             driver_model = Neo4jDriverModel(driver=driver)
@@ -85,6 +89,7 @@ class VectorRetriever(Retriever):
                 index_name=index_name,
                 embedder_model=embedder_model,
                 return_properties=return_properties,
+                result_formatter=result_formatter,
             )
         except ValidationError as e:
             raise RetrieverInitializationError(e.errors()) from e
@@ -97,6 +102,7 @@ class VectorRetriever(Retriever):
             if validated_data.embedder_model
             else None
         )
+        self.result_formatter = validated_data.result_formatter
         self._node_label = None
         self._embedding_node_property = None
         self._embedding_dimension = None
@@ -215,7 +221,7 @@ class VectorCypherRetriever(Retriever):
         index_name (str): Vector index name.
         retrieval_query (str): Cypher query that gets appended.
         embedder (Optional[Embedder]): Embedder object to embed query text.
-        result_formatter (Optional[Callable[[Any], Any]]): Provided custom function to transform a neo4j.Record to a RetrieverResultItem.
+        result_formatter (Optional[Callable[[neo4j.Record], RetrieverResultItem]]): Provided custom function to transform a neo4j.Record to a RetrieverResultItem.
     """
 
     def __init__(
@@ -224,7 +230,9 @@ class VectorCypherRetriever(Retriever):
         index_name: str,
         retrieval_query: str,
         embedder: Optional[Embedder] = None,
-        result_formatter: Optional[Callable[[Any], Any]] = None,
+        result_formatter: Optional[
+            Callable[[neo4j.Record], RetrieverResultItem]
+        ] = None,
     ) -> None:
         try:
             driver_model = Neo4jDriverModel(driver=driver)
@@ -234,6 +242,7 @@ class VectorCypherRetriever(Retriever):
                 index_name=index_name,
                 retrieval_query=retrieval_query,
                 embedder_model=embedder_model,
+                result_formatter=result_formatter,
             )
         except ValidationError as e:
             raise RetrieverInitializationError(e.errors()) from e
@@ -246,7 +255,7 @@ class VectorCypherRetriever(Retriever):
             if validated_data.embedder_model
             else None
         )
-        self.result_formatter = result_formatter
+        self.result_formatter = validated_data.result_formatter
         self._node_label = None
         self._node_embedding_property = None
         self._embedding_dimension = None
